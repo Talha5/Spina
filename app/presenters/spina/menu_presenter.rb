@@ -30,46 +30,45 @@ module Spina
 
     private
 
-      def roots
-        return collection.navigation_items.roots if collection.is_a?(Navigation)
-        collection.roots
-      end
+    def roots
+      return collection.navigation_items.roots if collection.is_a?(Navigation)
+      collection.roots
+    end
 
-      def render_menu(collection)
-        content_tag(menu_tag, class: menu_css) do
-          render_items(scoped_collection(collection))
+    def render_menu(collection)
+      content_tag(menu_tag, class: menu_css) do
+        render_items(scoped_collection(collection))
+      end
+    end
+
+    def render_items(collection)
+      content_tag(list_tag, class: list_css) do
+        collection.inject(ActiveSupport::SafeBuffer.new) do |buffer, item|
+          buffer << render_item(item)
         end
       end
+    end
 
-      def render_items(collection)
-        content_tag(list_tag, class: list_css) do
-          collection.inject(ActiveSupport::SafeBuffer.new) do |buffer, item|
-            buffer << render_item(item)
-          end
-        end
+    def render_item(item)
+      children = scoped_collection(item.children)
+
+      content_tag(list_item_tag, class: list_item_css, data: { page_id: item.page_id, draft: (true if item.draft?) }) do
+        buffer = ActiveSupport::SafeBuffer.new
+        buffer << link_to(item.menu_title, item.materialized_path, class: link_tag_css)
+        buffer << render_items(children) if render_children?(item) && children.any?
+        buffer
       end
+    end
 
-      def render_item(item)
-        return nil unless item.materialized_path
-        children = scoped_collection(item.children)
+    def scoped_collection(collection)
+      scoped = collection.regular_pages.active.in_menu.sorted
+      include_drafts ? scoped : scoped.live
+    end
 
-        content_tag(list_item_tag, class: list_item_css, data: {page_id: item.page_id, draft: (true if item.draft?) }) do
-          buffer = ActiveSupport::SafeBuffer.new
-          buffer << link_to(item.menu_title, item.materialized_path, class: link_tag_css)
-          buffer << render_items(children) if render_children?(item) && children.any?
-          buffer
-        end
-      end
-
-      def scoped_collection(collection)
-        scoped = collection.regular_pages.active.in_menu.sorted
-        include_drafts ? scoped : scoped.live
-      end
-
-      def render_children?(item)
-        return true unless depth
-        item.depth < depth
-      end
+    def render_children?(item)
+      return true unless depth
+      item.depth < depth
+    end
 
   end
 end
